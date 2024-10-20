@@ -17,24 +17,26 @@ class Signal {
 
 	static int Register(int sig, std::function<void()> handler);
 
-	static void Unregister(int id, const char *file = __builtin_FILE(), int line = __builtin_LINE());
+	static int Unregister(int id, const char *file = __builtin_FILE(), int line = __builtin_LINE());
 
-  protected:
+  private:
 	int id = 0;
 	godby::Spinlock lock;
 	std::unordered_map<int, std::vector<int>> handlers_by_sig;
 	std::unordered_map<int, std::variant<std::function<void()>, std::function<void(int)>>> id_to_handler;
 
+	Signal() = default;
+	~Signal() = default;
+
 	static Signal &Instance();
+	static void sig_handler(int sig);
 
 	int Add(std::function<void(int)> handler);
 
 	int Add(int sig, std::function<void()> handler);
 
-	void Remove(int id);
+	int Remove(int id);
 
 	void OnSignal(int sig);
-
-	static void sig_handler(int sig);
 };
 } // namespace godby

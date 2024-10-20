@@ -1,5 +1,8 @@
 #pragma once
 
+#include <numeric>
+#include <type_traits>
+
 namespace godby
 {
 template <typename T>
@@ -35,4 +38,7 @@ inline constexpr T NextPowerOfTwo(T x)
 #endif
 }
 
+//? Prime
+bool IsPrime(size_t n);
+size_t NextPrime(size_t n);
 } // namespace godby

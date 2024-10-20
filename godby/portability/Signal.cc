@@ -13,11 +13,16 @@ Signal &Signal::Instance()
 	return instance;
 }
 
+void Signal::sig_handler(int sig)
+{
+	Signal::Instance().OnSignal(sig);
+}
+
 int Signal::Install(int sig)
 {
 	struct sigaction sa;
 	sa.sa_flags = 0;
-	sa.sa_handler = Signal::sig_handler;
+	sa.sa_handler = sig_handler;
 	sigemptyset(&sa.sa_mask);
 	if (sigaction(sig, &sa, nullptr) != 0) {
 		fprintf(stderr, "sigaction failed\n");
@@ -41,10 +46,10 @@ int Signal::Register(int sig, std::function<void()> handler)
 	return Instance().Add(sig, handler);
 }
 
-void Signal::Unregister(int id, const char *file, int line)
+int Signal::Unregister(int id, const char *file, int line)
 {
 	printf("Unregister: %d @ %s:%d\n", id, file, line);
-	Instance().Remove(id);
+	return Instance().Remove(id);
 }
 
 int Signal::Add(std::function<void(int)> handler)
@@ -62,7 +67,7 @@ int Signal::Add(int sig, std::function<void()> handler)
 	return id;
 }
 
-void Signal::Remove(int id)
+int Signal::Remove(int id)
 {
 	std::unique_lock guard(lock);
 	auto it = id_to_handler.find(id);
@@ -74,6 +79,7 @@ void Signal::Remove(int id)
 		}
 		id_to_handler.erase(it);
 	}
+	return 0;
 }
 
 void Signal::OnSignal(int sig)
@@ -87,10 +93,5 @@ void Signal::OnSignal(int sig)
 	for (const auto &[id, handler] : id_to_handler) {
 		if (std::holds_alternative<std::function<void(int)>>(handler)) { std::get<std::function<void(int)>>(handler)(sig); }
 	}
-}
-
-void Signal::sig_handler(int sig)
-{
-	Instance().OnSignal(sig);
 }
 } // namespace godby
