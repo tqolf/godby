@@ -124,7 +124,20 @@ static inline void spin_loop_pause() noexcept {}
 
 #endif
 
-#if defined(__has_include) && __has_include(<tsl/robin_set.h>)
+#if defined(__has_include) && __has_include(<ankerl/unordered_dense.h>)
+
+#include <ankerl/unordered_dense.h> // ankerl::unordered_dense::set/map
+
+namespace godby
+{
+template <typename T>
+using hashset = ankerl::unordered_dense::set<T>;
+
+template <typename K, typename V>
+using hashmap = ankerl::unordered_dense::map<K, V>;
+} // namespace godby
+
+#elif defined(__has_include) && __has_include(<tsl/robin_set.h>)
 
 #include <tsl/robin_set.h> // tsl::robin_set
 #include <tsl/robin_map.h> // tsl::robin_map
