@@ -715,6 +715,12 @@ function(cc_select target)
   message(FATAL_ERROR "${CSI_BoldRed}Could not find implementation for ${library_name}${CSI_Reset}")
 endfunction()
 
+function(cc_source_if target condition)
+  if (${condition})
+    target_sources(${target} PRIVATE ${ARGN})
+  endif ()
+endfunction ()
+
 function(cc_alias AliasTarget ActualTarget)
   if(NOT TARGET ${AliasTarget})
     add_library(${AliasTarget} ALIAS ${ActualTarget})
