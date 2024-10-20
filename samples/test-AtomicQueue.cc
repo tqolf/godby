@@ -1,4 +1,5 @@
 #include "godbytest.h"
+#include <godby/Barrier.h>
 #include <godby/AtomicQueue.h>
 
 #define BOOST_TEST_MODULE AtomicQueue

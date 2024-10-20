@@ -1,4 +1,5 @@
 # Dependencies
+CPMAddPackage("gh:doctest/doctest#v2.4.11")
 CPMAddPackage("gh:martinus/nanobench#v4.3.11")
 
 cc_test(
@@ -38,4 +39,10 @@ cc_binary(
     NAME test-MemoryPool
     SOURCES test-MemoryPool.cc
     DEPENDENCIES pthread atomic
+)
+
+cc_binary(
+    NAME test-Expected
+    SOURCES test-Expected.cc
+    DEPENDENCIES godby doctest
 )
