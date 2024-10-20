@@ -1,0 +1,42 @@
+# Dependencies
+CPMAddPackage("gh:martinus/nanobench#v4.3.11")
+find_package(Boost REQUIRED COMPONENTS unit_test_framework)
+
+cc_test(
+    NAME test-Atomic
+    SOURCES test-Atomic.cc
+    DEPENDENCIES godby nanobench
+    OPTIONS -O3
+)
+
+cc_test(
+    NAME test-AtomicHashmap
+    SOURCES test-AtomicHashmap.cc
+    DEPENDENCIES godby nanobench
+    SANITIZE_OPTIONS asan
+)
+
+cc_test(
+    NAME test-AtomicQueue
+    SOURCES test-AtomicQueue.cc
+    DEPENDENCIES godby Boost::unit_test_framework
+    SANITIZE_OPTIONS asan gcov
+)
+
+cc_test(
+    NAME test-StealingExecutor
+    SOURCES test-StealingExecutor.cc
+    DEPENDENCIES godby
+)
+
+cc_test(
+    NAME test-Seqlock
+    SOURCES test-Seqlock.cc
+    DEPENDENCIES godby
+)
+
+cc_binary(
+    NAME test-MemoryPool
+    SOURCES test-MemoryPool.cc
+    DEPENDENCIES pthread atomic
+)

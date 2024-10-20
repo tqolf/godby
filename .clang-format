@@ -1,0 +1,156 @@
+# configured with https://zed0.co.uk/clang-format-configurator
+---
+Language: Cpp
+AccessModifierOffset: "-2"
+AlignAfterOpenBracket: Align
+AlignConsecutiveMacros: "true"
+AlignConsecutiveAssignments: "false"
+AlignConsecutiveDeclarations: "false"
+AlignEscapedNewlines: Left
+AlignOperands: "true"
+AlignTrailingComments: "true"
+AllowAllArgumentsOnNextLine: "true"
+AllowAllConstructorInitializersOnNextLine: "true"
+AllowAllParametersOfDeclarationOnNextLine: "true"
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine: "false"
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: "true"
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: "false"
+AlwaysBreakTemplateDeclarations: "Yes"
+BinPackArguments: "true"
+BinPackParameters: "true"
+BraceWrapping:
+  AfterCaseLabel: "false"
+  AfterClass: "false"
+  AfterControlStatement: "false"
+  AfterEnum: "false"
+  AfterFunction: "true"
+  AfterNamespace: "true"
+  AfterObjCDeclaration: "false"
+  AfterStruct: "false"
+  AfterUnion: "false"
+  AfterExternBlock: "false"
+  BeforeCatch: "false"
+  BeforeElse: "false"
+  IndentBraces: "false"
+  SplitEmptyFunction: "true"
+  SplitEmptyRecord: "true"
+  SplitEmptyNamespace: "true"
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Custom
+InsertBraces: "true"
+# InsertTrailingCommas: Wrapped
+BreakBeforeTernaryOperators: "true"
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakStringLiterals: "true"
+ColumnLimit: "180"
+CompactNamespaces: "false"
+ConstructorInitializerAllOnOneLineOrOnePerLine: "true"
+ConstructorInitializerIndentWidth: "4"
+ContinuationIndentWidth: "4"
+Cpp11BracedListStyle: "true"
+LambdaBodyIndentation: OuterScope
+DerivePointerAlignment: "false"
+DisableFormat: "false"
+ExperimentalAutoDetectBinPacking: "false"
+FixNamespaceComments: "true"
+ForEachMacros:
+  [
+    "foreach",
+    "FOREACH",
+    "RANGES_FOR",
+    "hlist_for_each_entry_continue",
+    "hlist_for_each_entry",
+    "hlist_for_each_entry_from",
+    "hlist_for_each_entry_safe",
+    "hlist_for_each_safe",
+    "list_for_each_entry",
+    "list_for_each_entry_continue",
+    "list_for_each_entry_continue_reverse",
+    "list_for_each_entry_from",
+    "list_for_each_entry_reverse",
+    "list_for_each_entry_safe",
+    "list_for_each_entry_safe_continue",
+    "list_for_each_entry_safe_from",
+    "list_for_each_entry_safe_reverse",
+    "list_for_each_from",
+    "list_for_each_prev",
+    "list_for_each_prev_safe",
+    "list_for_each_safe",
+  ]
+TypenameMacros: ["STACK_OF", "LIST"]
+IncludeBlocks: Regroup
+IncludeIsMainRegex: "([-_](test|unittest))?$"
+IndentCaseLabels: "true"
+IndentPPDirectives: None
+IndentWidth: "4"
+IndentWrappedFunctionNames: "false"
+KeepEmptyLinesAtTheStartOfBlocks: "false"
+MaxEmptyLinesToKeep: "3"
+NamespaceIndentation: None
+PenaltyBreakAssignment: "2"
+PenaltyBreakBeforeFirstCallParameter: "1"
+PenaltyBreakComment: "300"
+PenaltyBreakFirstLessLess: "120"
+PenaltyBreakString: "1000"
+PenaltyBreakTemplateDeclaration: "10"
+PenaltyExcessCharacter: "1000000"
+PenaltyReturnTypeOnItsOwnLine: "500"
+PointerAlignment: Right
+RawStringFormats:
+  - Language: Cpp
+    Delimiters:
+      - "cc"
+      - "CC"
+      - "cpp"
+      - "Cpp"
+      - "CPP"
+      - "c++"
+      - "C++"
+    CanonicalDelimiter: ""
+    BasedOnStyle: google
+  - Language: TextProto
+    Delimiters:
+      - "pb"
+      - "PB"
+      - "proto"
+      - "PROTO"
+    EnclosingFunctions:
+      - EqualsProto
+      - EquivToProto
+      - PARSE_PARTIAL_TEXT_PROTO
+      - PARSE_TEST_PROTO
+      - PARSE_TEXT_PROTO
+      - ParseTextOrDie
+      - ParseTextProtoOrDie
+    CanonicalDelimiter: ""
+    BasedOnStyle: google
+ReflowComments: "true"
+SortIncludes: "false"
+SortUsingDeclarations: "false"
+SpaceAfterCStyleCast: "false"
+SpaceAfterLogicalNot: "false"
+SpaceAfterTemplateKeyword: "true"
+SpaceBeforeAssignmentOperators: "true"
+SpaceBeforeCpp11BracedList: "false"
+SpaceBeforeCtorInitializerColon: "true"
+SpaceBeforeInheritanceColon: "true"
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: "true"
+SpaceInEmptyParentheses: "false"
+SpacesBeforeTrailingComments: "1"
+SpacesInAngles: "false"
+SpacesInCStyleCastParentheses: "false"
+SpacesInContainerLiterals: "false"
+SpacesInParentheses: "false"
+SpacesInSquareBrackets: "false"
+Standard: Auto
+StatementMacros: ["__maybe_unused"]
+TabWidth: "4"
+UseTab: Always

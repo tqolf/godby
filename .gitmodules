@@ -1,0 +1,51 @@
+[submodule "contrib/fast_float"]
+	path = contrib/fast_float
+	url = https://github.com/fastfloat/fast_float.git
+[submodule "contrib/robin-map"]
+	path = contrib/robin-map
+	url = https://github.com/Tessil/robin-map.git
+[submodule "contrib/quill"]
+	path = contrib/quill
+	url = https://github.com/odygrd/quill.git
+[submodule "contrib/fast_io"]
+	path = contrib/fast_io
+	url = https://github.com/cppfastio/fast_io.git
+[submodule "contrib/simdutf"]
+	path = contrib/simdutf
+	url = https://github.com/simdutf/simdutf.git
+[submodule "contrib/FastPFor"]
+	path = contrib/FastPFor
+	url = https://github.com/lemire/FastPFor.git
+[submodule "contrib/libfork"]
+	path = contrib/libfork
+	url = https://github.com/ConorWilliams/libfork.git
+[submodule "contrib/prometheus-cpp"]
+	path = contrib/prometheus-cpp
+	url = https://github.com/jupp0r/prometheus-cpp.git
+[submodule "contrib/metrics-cpp"]
+	path = contrib/metrics-cpp
+	url = https://github.com/DarkWanderer/metrics-cpp.git
+[submodule "contrib/cpp-ipc"]
+	path = contrib/cpp-ipc
+	url = https://github.com/mutouyun/cpp-ipc.git
+[submodule "contrib/fast-cpp-csv-parser"]
+	path = contrib/fast-cpp-csv-parser
+	url = https://github.com/ben-strasser/fast-cpp-csv-parser.git
+[submodule "contrib/csv2"]
+	path = contrib/csv2
+	url = https://github.com/p-ranav/csv2.git
+[submodule "contrib/shadesmar"]
+	path = contrib/shadesmar
+	url = https://github.com/Squadrick/shadesmar.git
+[submodule "contrib/reflect-cpp"]
+	path = contrib/reflect-cpp
+	url = https://github.com/getml/reflect-cpp.git
+[submodule "contrib/STX"]
+	path = contrib/STX
+	url = https://github.com/lamarrr/STX.git
+[submodule "contrib/co_async"]
+	path = contrib/co_async
+	url = https://github.com/archibate/co_async.git
+[submodule "contrib/confluo"]
+	path = contrib/confluo
+	url = https://github.com/ucbrise/confluo.git
