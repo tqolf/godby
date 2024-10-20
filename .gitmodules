@@ -49,3 +49,18 @@
 [submodule "contrib/confluo"]
 	path = contrib/confluo
 	url = https://github.com/ucbrise/confluo.git
+[submodule "contrib/magic_enum"]
+	path = contrib/magic_enum
+	url = https://github.com/Neargye/magic_enum.git
+[submodule "contrib/concurrencpp"]
+	path = contrib/concurrencpp
+	url = https://github.com/David-Haim/concurrencpp.git
+[submodule "contrib/cpufp"]
+	path = contrib/cpufp
+	url = https://github.com/pigirons/cpufp.git
+[submodule "contrib/pcm"]
+	path = contrib/pcm
+	url = https://github.com/intel/pcm.git
+[submodule "contrib/powercap"]
+	path = contrib/powercap
+	url = https://github.com/powercap/powercap.git

@@ -46,3 +46,15 @@ cc_binary(
     SOURCES test-Expected.cc
     DEPENDENCIES godby doctest
 )
+
+cc_binary(
+    NAME test-StealingQueue
+    SOURCES test-StealingQueue.cc
+    DEPENDENCIES godby
+)
+
+cc_binary(
+    NAME test-ExpiringLruCache
+    SOURCES test-ExpiringLruCache.cc
+    DEPENDENCIES godby
+)

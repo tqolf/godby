@@ -33,4 +33,5 @@
 
 # directories
 _*/
-build/**
+**/build
+**/todo
