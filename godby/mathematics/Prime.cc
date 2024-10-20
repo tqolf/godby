@@ -76,7 +76,7 @@ bool IsPrime(size_t n)
 	  and 17.*/
 }
 
-/* works if n > 2 and n < 4,759,123,141 */
+/* works if n < 4,759,123,141 */
 size_t NextPrime(size_t n)
 {
 	if (n <= 2) { return 2; }
