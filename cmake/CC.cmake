@@ -46,6 +46,59 @@ if(NOT WIN32)
   set(CSI_BoldWhite   "${Esc}[1;37m")
 endif()
 
+# dpendency formats:
+#   single package or target: pthread, your_cmake_target
+#   path to precompiled library: /path/to/compied_library
+#   single package can be found vai find_package: Boost::system
+#   multiple package can be found vai find_package: Boost::system,filesystem
+function(cc_add_dependencies target dependencies)
+    # Find the position of "::" in the dependencies string
+    string(FIND "${dependencies}" "::" pos)
+
+    if (pos GREATER -1)
+        # Separate the package name and the components part
+        math(EXPR components_start "${pos} + 2")
+        string(SUBSTRING "${dependencies}" 0 ${pos} package_name)
+        string(SUBSTRING "${dependencies}" ${components_start} -1 components_str)
+
+        # Handle the components list (split by commas or spaces)
+        string(REPLACE "," ";" components_list "${components_str}")
+        string(REPLACE " " ";" components_list "${components_list}")
+
+        set(missing_components "")  # List to store missing components
+
+        # Check if each component already exists as a target
+        foreach(component IN LISTS components_list)
+            if (NOT TARGET ${package_name}::${component})
+                message(STATUS "Component ${package_name}::${component} not found, will attempt to find it.")
+                list(APPEND missing_components ${component})  # Add missing component to the list
+            else()
+                message(STATUS "Package ${package_name}::${component} already found, skipping.")
+            endif()
+        endforeach()
+
+        # If there are missing components, call find_package to locate them
+        if (missing_components)
+            message(STATUS "add_dependencies: ${package_name} with missing components: ${missing_components}")
+            find_package(${package_name} REQUIRED COMPONENTS ${missing_components})
+        endif()
+
+        # Link all components (including already found and newly found)
+        foreach(component IN LISTS components_list)
+            target_link_libraries(${target} PUBLIC ${package_name}::${component})
+        endforeach()
+    else()
+        # If no "::" is found, treat it as a single library
+        if (NOT TARGET ${dependencies})
+            message(STATUS "add_dependencies: ${dependencies}")
+            find_package(${dependencies} QUIET)
+        else()
+            message(STATUS "Package ${dependencies} already found, skipping find_package.")
+        endif()
+        target_link_libraries(${target} PUBLIC ${dependencies})
+    endif()
+endfunction()
+
 # HEADERS/SOURCES:
 #   - Recursive: /path/to/(**.h, **.cc)
 #   - Non-recursive: /path/to/(*.h, *.cc)
@@ -226,19 +279,19 @@ function (cc_target type)
 
       foreach (target IN LISTS ALL_TARGETS)
         if (APPLE)
-          target_link_libraries(${target} -Wl,-force_load ${depend})
+          target_link_libraries(${target} PRIVATE -Wl,-force_load ${depend})
         elseif (MSVC)
           # In MSVC, we will add whole archive in default.
-          target_link_libraries(${target} -WHOLEARCHIVE:${depend})
+          target_link_libraries(${target} PRIVATE -WHOLEARCHIVE:${depend})
         else ()
           # Assume everything else is like gcc
-          target_link_libraries(${target} -Wl,--allow-multiple-definition)
-          target_link_libraries(${target} -Wl,--whole-archive ${depend} -Wl,--no-whole-archive)
+          target_link_libraries(${target} PRIVATE -Wl,--allow-multiple-definition)
+          target_link_libraries(${target} PRIVATE -Wl,--whole-archive ${depend} -Wl,--no-whole-archive)
         endif ()
       endforeach ()
     else ()
       foreach (target IN LISTS ALL_TARGETS)
-        target_link_libraries(${target} ${depend})
+        cc_add_dependencies(${target} ${depend})
       endforeach ()
     endif ()
   endforeach ()
@@ -550,7 +603,7 @@ function (cc_target type)
   # Coverage
   if (SANITIZE_OPTIONS_GCOV)
     foreach (target IN LISTS ALL_TARGETS)
-      target_link_libraries(${target} gcov)
+      target_link_libraries(${target} PRIVATE gcov)
       target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:-fprofile-arcs -ftest-coverage>)
     endforeach ()
   endif ()

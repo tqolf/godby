@@ -69,11 +69,11 @@ class MemoryPool {
 	pointer address(reference x) const noexcept
 	{
 		return &x;
-	};
-	const pointer address(const_reference x) const noexcept
+	}
+	pointer address(const_reference x) const noexcept
 	{
 		return &x;
-	};
+	}
 
 	// Can only allocate one object at a time. n and hint are ignored
 	pointer allocate(std::size_t n = 1, const_pointer hint = 0);
@@ -192,7 +192,7 @@ MemoryPool<T, block_size> &MemoryPool<T, block_size>::operator=(MemoryPool &&mp)
 // See here: https://en.wikipedia.org/wiki/ABA_problem
 // The solution below works adequately.
 template <typename T, std::size_t block_size>
-inline typename MemoryPool<T, block_size>::pointer MemoryPool<T, block_size>::allocate(size_type n, const_pointer hint)
+inline typename MemoryPool<T, block_size>::pointer MemoryPool<T, block_size>::allocate([[maybe_unused]] size_type n, [[maybe_unused]] const_pointer hint)
 {
 	slot_head_t next, orig = m_free.load();
 	do {
@@ -212,7 +212,7 @@ inline typename MemoryPool<T, block_size>::pointer MemoryPool<T, block_size>::al
 }
 
 template <typename T, std::size_t block_size>
-inline void MemoryPool<T, block_size>::deallocate(pointer p, size_type n)
+inline void MemoryPool<T, block_size>::deallocate(pointer p, [[maybe_unused]] size_type n)
 {
 	slot_head_t next, orig = m_free.load();
 	slot_t *tp = reinterpret_cast<slot_t *>(p);

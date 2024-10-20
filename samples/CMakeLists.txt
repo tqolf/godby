@@ -1,6 +1,5 @@
 # Dependencies
 CPMAddPackage("gh:martinus/nanobench#v4.3.11")
-find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
 cc_test(
     NAME test-Atomic

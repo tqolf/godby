@@ -1,6 +1,4 @@
 cc_library(
-  SMALL_FOOTPRINT
-
   NAME
     godby
   SOURCES
