@@ -58,3 +58,9 @@ cc_binary(
     SOURCES test-ExpiringLruCache.cc
     DEPENDENCIES godby
 )
+
+cc_binary(
+    NAME test-BusyWait
+    SOURCES test-BusyWait.cc
+    DEPENDENCIES godby
+)
