@@ -1,19 +1,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <time.h>
-#include <x86intrin.h> // for __rdtsc()
 #include <array>
 #include <algorithm>
-#include <godby/Portability.h>
 #include <chrono>
 #include <iostream>
 #include <sys/time.h>
-
-// Helper function to get CPU timestamp counter (TSC)
-static inline uint64_t get_tsc()
-{
-	return __rdtsc();
-}
 
 class HighResolutionSleeper final {
   private:

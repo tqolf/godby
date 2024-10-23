@@ -26,7 +26,7 @@ macro (cc_set_policies)
 endmacro ()
 cc_set_policies()
 
-if(NOT WIN32)
+if (NOT WIN32)
   string(ASCII 27 Esc)
   set(CSI_Reset       "${Esc}[m")
   set(CSI_BOLD        "${Esc}[1m")
@@ -44,22 +44,22 @@ if(NOT WIN32)
   set(CSI_BoldMagenta "${Esc}[1;35m")
   set(CSI_BoldCyan    "${Esc}[1;36m")
   set(CSI_BoldWhite   "${Esc}[1;37m")
-endif()
+endif ()
 
 # dpendency formats:
 #   single package or target: pthread, your_cmake_target
 #   path to precompiled library: /path/to/compied_library
-#   single package can be found vai find_package: Boost::system
-#   multiple package can be found vai find_package: Boost::system,filesystem
-function(cc_add_dependencies target dependencies)
+#   single package can be found via find_package: Boost::system
+#   multiple package can be found via find_package: Boost::system,filesystem
+function (cc_deps target dependencies)
     # Find the position of "::" in the dependencies string
     string(FIND "${dependencies}" "::" pos)
 
     if (pos GREATER -1)
         # Separate the package name and the components part
-        math(EXPR components_start "${pos} + 2")
+        math(EXPR cstart "${pos} + 2")
         string(SUBSTRING "${dependencies}" 0 ${pos} package_name)
-        string(SUBSTRING "${dependencies}" ${components_start} -1 components_str)
+        string(SUBSTRING "${dependencies}" ${cstart} -1 components_str)
 
         # Handle the components list (split by commas or spaces)
         string(REPLACE "," ";" components_list "${components_str}")
@@ -68,36 +68,36 @@ function(cc_add_dependencies target dependencies)
         set(missing_components "")  # List to store missing components
 
         # Check if each component already exists as a target
-        foreach(component IN LISTS components_list)
+        foreach (component IN LISTS components_list)
             if (NOT TARGET ${package_name}::${component})
                 message(STATUS "Component ${package_name}::${component} not found, will attempt to find it.")
                 list(APPEND missing_components ${component})  # Add missing component to the list
-            else()
+            else ()
                 message(STATUS "Package ${package_name}::${component} already found, skipping.")
-            endif()
-        endforeach()
+            endif ()
+        endforeach ()
 
         # If there are missing components, call find_package to locate them
         if (missing_components)
             message(STATUS "add_dependencies: ${package_name} with missing components: ${missing_components}")
             find_package(${package_name} REQUIRED COMPONENTS ${missing_components})
-        endif()
+        endif ()
 
         # Link all components (including already found and newly found)
-        foreach(component IN LISTS components_list)
+        foreach (component IN LISTS components_list)
             target_link_libraries(${target} PUBLIC ${package_name}::${component})
-        endforeach()
-    else()
+        endforeach ()
+    else ()
         # If no "::" is found, treat it as a single library
         if (NOT TARGET ${dependencies})
             message(STATUS "add_dependencies: ${dependencies}")
             find_package(${dependencies} QUIET)
-        else()
+        else ()
             message(STATUS "Package ${dependencies} already found, skipping find_package.")
-        endif()
+        endif ()
         target_link_libraries(${target} PUBLIC ${dependencies})
-    endif()
-endfunction()
+    endif ()
+endfunction ()
 
 # HEADERS/SOURCES:
 #   - Recursive: /path/to/(**.h, **.cc)
@@ -256,11 +256,11 @@ function (cc_target type)
     endforeach ()
   endif ()
 
-  if(CC_EXCLUDE_FROM_ALL)
+  if (CC_EXCLUDE_FROM_ALL)
     foreach (target IN LISTS ALL_TARGETS)
       set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL ON)
     endforeach ()
-  endif()
+  endif ()
 
   # Option: Whole achrive
   if (CC_ALWAYS_LINK)
@@ -294,7 +294,7 @@ function (cc_target type)
       endforeach ()
     else ()
       foreach (target IN LISTS ALL_TARGETS)
-        cc_add_dependencies(${target} ${depend})
+        cc_deps(${target} ${depend})
       endforeach ()
     endif ()
   endforeach ()
@@ -424,7 +424,7 @@ function (cc_target type)
                 $<$<VERSION_GREATER:$<CXX_COMPILER_VERSION>,4.7.99>:-Wshadow>
                 # $<$<VERSION_GREATER:$<ASM_COMPILER_VERSION>,4.7.99>:-Wshadow>
       )
-    endforeach()
+    endforeach ()
   elseif (NOT "${TYPE_UPPER}" STREQUAL "TEST")
     message(STATUS "${MESSAGE_PREFIX} - No strict warnings")
     foreach (target IN LISTS ALL_TARGETS)
@@ -694,38 +694,38 @@ function (cc_target type)
   # cmake-format: on
 endfunction ()
 
-function(cc_select target)
+function (cc_select target)
   add_library(${target} INTERFACE)
 
   list(LENGTH ARGN length)
-  if(length GREATER 0)
+  if (length GREATER 0)
     math(EXPR length "${length} - 1")
-    foreach(key RANGE 0 ${length} 2)
+    foreach (key RANGE 0 ${length} 2)
       math(EXPR value "${key} + 1")
       list(GET ARGN ${key} condition)
       list(GET ARGN ${value} implementation)
 
-      if((${condition} STREQUAL "DEFAULT") OR (${${condition}}))
+      if ((${condition} STREQUAL "DEFAULT") OR (${${condition}}))
         message(STATUS "${CSI_BoldRed}Using ${library_name} = ${implementation}${CSI_Reset}")
         target_link_libraries(${library_name} INTERFACE ${implementation})
-        return()
-      endif()
-    endforeach()
-  endif()
+        return ()
+      endif ()
+    endforeach ()
+  endif ()
   message(FATAL_ERROR "${CSI_BoldRed}Could not find implementation for ${library_name}${CSI_Reset}")
-endfunction()
+endfunction ()
 
-function(cc_source_if target condition)
+function (cc_source_if target condition)
   if (${condition})
     target_sources(${target} PRIVATE ${ARGN})
   endif ()
 endfunction ()
 
-function(cc_alias AliasTarget ActualTarget)
-  if(NOT TARGET ${AliasTarget})
+function (cc_alias AliasTarget ActualTarget)
+  if (NOT TARGET ${AliasTarget})
     add_library(${AliasTarget} ALIAS ${ActualTarget})
-  endif()
-endfunction()
+  endif ()
+endfunction ()
 
 function (cc_library)
   cc_target(LIBRARY ${ARGV})
