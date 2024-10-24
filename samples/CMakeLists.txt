@@ -18,19 +18,19 @@ CPMAddPackage(
   OPTIONS "CXXOPTS_BUILD_EXAMPLES NO" "CXXOPTS_BUILD_TESTS NO" "CXXOPTS_ENABLE_INSTALL YES"
 )
 
-CPMAddPackage(
-  NAME Boost
-  VERSION 1.86.0
-  URL https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.tar.xz
-  OPTIONS "BOOST_ENABLE_CMAKE ON"
-)
+# CPMAddPackage(
+#   NAME Boost
+#   VERSION 1.86.0
+#   URL https://github.com/boostorg/boost/releases/download/boost-1.86.0/boost-1.86.0-cmake.tar.xz
+#   OPTIONS "BOOST_ENABLE_CMAKE ON"
+# )
 
-CPMAddPackage(
-  NAME benchmark
-  GITHUB_REPOSITORY google/benchmark
-  VERSION 1.5.2
-  OPTIONS "BENCHMARK_ENABLE_TESTING Off"
-)
+# CPMAddPackage(
+#   NAME benchmark
+#   GITHUB_REPOSITORY google/benchmark
+#   VERSION 1.5.2
+#   OPTIONS "BENCHMARK_ENABLE_TESTING Off"
+# )
 
 if (benchmark_ADDED)
   # enable c++11 to avoid compilation errors
@@ -54,14 +54,14 @@ cc_test(
     NAME test-AtomicHashmap
     SOURCES test-AtomicHashmap.cc
     DEPENDENCIES godby nanobench
-    SANITIZE_OPTIONS asan
+    FEATURES asan
 )
 
 cc_test(
     NAME test-AtomicQueue
     SOURCES test-AtomicQueue.cc
     DEPENDENCIES godby Boost::unit_test_framework
-    SANITIZE_OPTIONS asan gcov
+    FEATURES asan gcov
 )
 
 cc_test(
