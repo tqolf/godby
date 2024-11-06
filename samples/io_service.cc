@@ -9,10 +9,10 @@ unsigned int scheduler::M_coro_scheduler_count = 0;
 scheduler::scheduler()
 {
 	M_id = ++M_coro_scheduler_count;
-	M_thread_cxts.reserve(128);
+	M_thread_contexts.reserve(128);
 	thread_context *io_cxt = new thread_context;
 	io_cxt->M_tasks = new task_queue(64);
-	M_thread_cxts.push_back(io_cxt);
+	M_thread_contexts.push_back(io_cxt);
 	spawn_workers(std::thread::hardware_concurrency());
 }
 
@@ -21,7 +21,7 @@ scheduler::~scheduler()
 	M_stop_requested = true;
 	M_task_wait_flag.test_and_set(std::memory_order_relaxed);
 	M_task_wait_flag.notify_all();
-	for (auto &t_cxt : this->M_thread_cxts) {
+	for (auto &t_cxt : this->M_thread_contexts) {
 		if (t_cxt->M_thread.joinable()) { t_cxt->M_thread.join(); }
 	}
 }
@@ -35,7 +35,7 @@ bool scheduler::steal_task(std::coroutine_handle<> &handle) noexcept
 		c = false;
 		unsigned int i = (M_thread_id + 1) % (total_threads + 1);
 		do {
-			task_queue *queue = M_thread_cxts[i]->M_tasks;
+			task_queue *queue = M_thread_contexts[i]->M_tasks;
 			if (queue->steal(handle)) { return true; }
 			c = c | !queue->empty();
 			i = (i + 1) % (total_threads + 1);
@@ -49,21 +49,21 @@ void scheduler::schedule(const std::coroutine_handle<> &handle) noexcept
 {
 	if (!M_thread_id | (M_coro_scheduler_id != M_id)) {
 		std::unique_lock lk(M_global_task_queue_mutex);
-		M_thread_cxts[0]->M_tasks->enqueue(handle);
+		M_thread_contexts[0]->M_tasks->enqueue(handle);
 	} else {
-		M_thread_cxts[M_thread_id]->M_tasks->enqueue(handle);
+		M_thread_contexts[M_thread_id]->M_tasks->enqueue(handle);
 	}
 	if (!M_task_wait_flag.test_and_set(std::memory_order_relaxed)) { M_task_wait_flag.notify_one(); }
 }
 
 bool scheduler::peek_next_coroutine(std::coroutine_handle<> &handle) noexcept
 {
-	return M_thread_cxts[M_thread_id]->M_tasks->dequeue(handle) ? true : steal_task(handle);
+	return M_thread_contexts[M_thread_id]->M_tasks->dequeue(handle) ? true : steal_task(handle);
 }
 
 std::coroutine_handle<> scheduler::get_waiting_channel() noexcept
 {
-	return M_thread_cxts[M_thread_id]->M_waiting_channel;
+	return M_thread_contexts[M_thread_id]->M_waiting_channel;
 }
 
 auto scheduler::get_next_coroutine() noexcept -> std::coroutine_handle<>
@@ -110,10 +110,10 @@ void scheduler::spawn_workers(const unsigned int &count)
 	std::unique_lock<std::mutex> lk(M_spawn_thread_mutex);
 	for (unsigned int i = 0; i < count; ++i) {
 		init_thread();
-		M_thread_cxts[M_total_threads]->M_thread = std::thread([&](unsigned int id) {
+		M_thread_contexts[M_total_threads]->M_thread = std::thread([&](unsigned int id) {
 			M_thread_id = id;
 			M_coro_scheduler_id = M_id;
-			M_thread_cxts[id]->M_waiting_channel.resume();
+			M_thread_contexts[id]->M_waiting_channel.resume();
 		}, ++M_total_threads);
 	}
 }
@@ -124,7 +124,7 @@ void scheduler::init_thread()
 	cxt->M_thread_status.M_status = thread_status::STATUS::READY;
 	cxt->M_tasks = new task_queue(64);
 	cxt->M_waiting_channel = awaiter().handle();
-	M_thread_cxts.push_back(cxt);
+	M_thread_contexts.push_back(cxt);
 }
 
 void scheduler::set_thread_status(thread_status::STATUS status) noexcept
@@ -148,25 +148,25 @@ void scheduler::set_thread_suspended() noexcept
 {
 	this->M_total_running_threads.fetch_sub(1, std::memory_order_relaxed);
 	if ((this->M_total_suspended_threads.fetch_add(1, std::memory_order_relaxed) + 1) >= M_total_threads.load(std::memory_order_relaxed)) { spawn_workers(1); }
-	M_thread_cxts[M_thread_id]->M_thread_status.M_status.store(thread_status::STATUS::SUSPENDED, std::memory_order_relaxed);
+	M_thread_contexts[M_thread_id]->M_thread_status.M_status.store(thread_status::STATUS::SUSPENDED, std::memory_order_relaxed);
 }
 
 void scheduler::set_thread_ready() noexcept
 {
 	this->M_total_running_threads.fetch_sub(1, std::memory_order_relaxed);
 	this->M_total_ready_threads.fetch_add(1, std::memory_order_relaxed);
-	M_thread_cxts[M_thread_id]->M_thread_status.M_status.store(thread_status::STATUS::READY, std::memory_order_relaxed);
+	M_thread_contexts[M_thread_id]->M_thread_status.M_status.store(thread_status::STATUS::READY, std::memory_order_relaxed);
 }
 
 void scheduler::set_thread_running() noexcept
 {
-	if (M_thread_cxts[M_thread_id]->M_thread_status.M_status.load(std::memory_order_relaxed) == thread_status::STATUS::SUSPENDED) {
+	if (M_thread_contexts[M_thread_id]->M_thread_status.M_status.load(std::memory_order_relaxed) == thread_status::STATUS::SUSPENDED) {
 		this->M_total_suspended_threads.fetch_sub(1, std::memory_order_relaxed);
 	} else {
 		this->M_total_ready_threads.fetch_sub(1, std::memory_order_relaxed);
 	}
 	this->M_total_running_threads.fetch_add(1, std::memory_order_relaxed);
-	M_thread_cxts[M_thread_id]->M_thread_status.M_status.store(thread_status::STATUS::RUNNING, std::memory_order_relaxed);
+	M_thread_contexts[M_thread_id]->M_thread_status.M_status.store(thread_status::STATUS::RUNNING, std::memory_order_relaxed);
 }
 
 thread_local unsigned int io_service::M_thread_id = 0;
@@ -176,13 +176,13 @@ thread_local io_op_pipeline *io_service::M_io_queue = nullptr;
 io_service::io_service(const u_int &entries, const u_int &flags) : io_operation(this), M_entries(entries), M_flags(flags)
 {
 	io_uring_queue_init(entries, &M_uring, flags);
-	M_io_cq_thread = std::move(std::thread([&] { this->io_loop(); }));
+	M_io_cq_thread = std::move(std::thread([&] { this->loop(); }));
 }
 
 io_service::io_service(const u_int &entries, io_uring_params &params) : io_operation(this), M_entries(entries)
 {
 	io_uring_queue_init_params(entries, &M_uring, &params);
-	M_io_cq_thread = std::move(std::thread([&] { this->io_loop(); }));
+	M_io_cq_thread = std::move(std::thread([&] { this->loop(); }));
 }
 
 io_service::~io_service()
@@ -192,7 +192,7 @@ io_service::~io_service()
 	M_io_cq_thread.join();
 }
 
-void io_service::io_loop() noexcept
+void io_service::loop() noexcept
 {
 	while (!M_stop_requested.load(std::memory_order_relaxed)) {
 		io_uring_cqe *cqe = nullptr;
@@ -312,7 +312,7 @@ async<void> timer(io_service *io, itimerspec spec, std::function<void()> func)
 	co_await io->close(tfd);
 }
 
-async<> delay(io_service *io, unsigned long sec, unsigned long nsec)
+async<> sleep(io_service *io, unsigned long sec, unsigned long nsec)
 {
 	int tfd = timerfd_create(CLOCK_REALTIME, 0);
 	itimerspec spec;
@@ -451,7 +451,7 @@ namespace example3
 {
 async<void> print_task(event &e)
 {
-	for (int i = 0; i < 10; ++i) {
+	for (int i = 0; i < 5; ++i) {
 		sleep(1);
 		e.set(i);
 	}
@@ -462,7 +462,7 @@ launch<int> launch_coroutine()
 {
 	event e;
 	auto t = print_task(e).schedule_on(co_await get_scheduler());
-	for (int i = 0; i < 10; ++i) { std::cout << co_await e << std::endl; }
+	for (int i = 0; i < 5; ++i) { std::cout << co_await e << std::endl; }
 	co_await t;
 	co_return 0;
 }
@@ -486,7 +486,7 @@ launch<int> launch_coroutine()
 	while (ints) {
 		int val = co_await ints;
 		std::cout << val << std::endl;
-		if (val == 10) { co_await ints.cancel(); }
+		if (val == 5) { co_await ints.cancel(); }
 	}
 	co_return 1;
 }
@@ -683,7 +683,7 @@ launch<> launch_coroutine(io_service *io)
 	co_await io->poll_add(tfd, POLL_IN);
 	std::cerr << "Poll Event received\n";
 
-	co_await io->delay(5, 0);
+	co_await io->sleep(5, 0);
 }
 } // namespace example7
 
@@ -719,7 +719,7 @@ task<int> print_file(io_service &io)
 	auto link1 = io.link();
 	// Wait for 5 sec
 
-	link1.delay(5, 0);
+	link1.sleep(5, 0);
 	auto rd1_awaiter = link1.read(fd1, buffer1, 128, 0);
 	link1.close(fd1);
 	auto rd2_awaiter = link1.read(fd2, buffer2, 256, 0);
@@ -866,22 +866,27 @@ int main(int argc, char **argv)
 		std::cout << "File Length 1 : " << cr1 << std::endl;
 		std::cout << "File Length 2 : " << cr2 << std::endl;
 	}
+	std::cout << "\x1b[31mexample 1 done\x1b[0m" << std::endl;
 
+#if 0
 	{
 		using namespace example2;
 
 		scheduler scheduler;
-		io io(1000, 0);
-		if (argc == 2) { scheduler.spawn_workers(atoi(argv[1])); }
+		scheduler.spawn_workers(5);
 
+		io io(1000, 0);
 		start_accept(&io).schedule_on(&scheduler).join();
 	}
+	std::cout << "\x1b[31mexample 2 done\x1b[0m" << std::endl;
+#endif
 
 	{
 		using namespace example3;
 		scheduler schd;
 		int val = launch_coroutine().schedule_on(&schd);
 	}
+	std::cout << "\x1b[31mexample 3 done\x1b[0m" << std::endl;
 
 	{
 		using namespace example4;
@@ -889,7 +894,9 @@ int main(int argc, char **argv)
 		scheduler schd;
 		int a = launch_coroutine().schedule_on(&schd);
 	}
+	std::cout << "\x1b[31mexample 4 done\x1b[0m" << std::endl;
 
+#if 0
 	{
 		using namespace example5;
 
@@ -910,16 +917,33 @@ int main(int argc, char **argv)
 
 		start_accept(&io).schedule_on(&scheduler).join();
 	}
+	std::cout << "\x1b[31mexample 5 done\x1b[0m" << std::endl;
+#endif
 
+#if 0
 	{
 		using namespace example6;
 
 		scheduler scheduler;
-		io io(1000, 0);
-		if (argc == 2) { scheduler.spawn_workers(atoi(argv[1])); }
+		scheduler.spawn_workers(5);
 
+		io io(1000, 0);
 		start_accept(&io).schedule_on(&scheduler).join();
 	}
+	std::cout << "\x1b[31mexample 6 done\x1b[0m" << std::endl;
+#endif
+
+#if 0
+	{
+		using namespace example7;
+
+		scheduler schd;
+		io_service io(100, 0);
+
+		launch_coroutine(&io).schedule_on(&schd).join();
+	}
+	std::cout << "\x1b[31mexample 7 done\x1b[0m" << std::endl;
+#endif
 
 	{
 		using namespace example8;
@@ -934,16 +958,9 @@ int main(int argc, char **argv)
 		int cr2 = add(10, 20).schedule_on(&schd);
 		std::cout << cr2 << std::endl;
 	}
+	std::cout << "\x1b[31mexample 8 done\x1b[0m" << std::endl;
 
-	{
-		using namespace example7;
-
-		scheduler schd;
-		io_service io(100, 0);
-
-		launch_coroutine(&io).schedule_on(&schd).join();
-	}
-
+#if 0
 	{
 		using namespace example9;
 
@@ -952,7 +969,10 @@ int main(int argc, char **argv)
 		int len = coroutine_1(io).schedule_on(&scheduler);
 		std::cout << "File Length : " << len << std::endl;
 	}
+	std::cout << "\x1b[31mexample 9 done\x1b[0m" << std::endl;
+#endif
 
+#if 0
 	{
 		using namespace example10;
 
@@ -963,6 +983,8 @@ int main(int argc, char **argv)
 		int len = coroutine_1(io).schedule_on(&scheduler);
 		std::cout << "File Length : " << len << std::endl;
 	}
+	std::cout << "\x1b[31mexample 10 done\x1b[0m" << std::endl;
+#endif
 
 	{
 		using namespace example11;
@@ -972,6 +994,7 @@ int main(int argc, char **argv)
 		int len = coroutine_1(io).schedule_on(&scheduler);
 		std::cout << "File Length : " << len << std::endl;
 	}
+	std::cout << "\x1b[31mexample 11 done\x1b[0m" << std::endl;
 
 	{
 		using namespace example12;
@@ -984,6 +1007,7 @@ int main(int argc, char **argv)
 		std::cout << cr << std::endl;
 		sleep(2);
 	}
+	std::cout << "\x1b[31mexample 12 done\x1b[0m" << std::endl;
 
 	{
 		using namespace example13;
@@ -993,6 +1017,7 @@ int main(int argc, char **argv)
 
 		coroutine_2(&io).schedule_on(&scheduler).join();
 	}
+	std::cout << "\x1b[31mexample 13 done\x1b[0m" << std::endl;
 
 	return 0;
 }

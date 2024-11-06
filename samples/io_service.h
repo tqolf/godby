@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <algorithm>
 #include <atomic>
 #include <concepts>
@@ -416,7 +417,7 @@ class scheduler {
 	std::atomic_uint M_total_ready_threads{0};
 	std::atomic_uint M_total_running_threads{0};
 
-	std::vector<thread_context *> M_thread_cxts;
+	std::vector<thread_context *> M_thread_contexts;
 
 	std::mutex M_task_mutex;
 
@@ -1043,17 +1044,17 @@ using io_uring_op = std::variant<io_uring_op_timeout_t, io_uring_op_openat_t, io
 
 template <typename IO_SERVICE>
 class io_operation {
-	IO_SERVICE *M_io_service;
+	IO_SERVICE *M_io;
 
   public:
-	explicit io_operation(IO_SERVICE *service) : M_io_service{service} {}
+	explicit io_operation(IO_SERVICE *service) : M_io{service} {}
 
 	auto nop(unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_nop_t(sqe_flags));
+		return M_io->submit_io(io_uring_op_nop_t(sqe_flags));
 	}
 
-	auto delay(const unsigned long &sec, const unsigned long &nsec, unsigned char sqe_flags = 0)
+	auto sleep(const unsigned long &sec, const unsigned long &nsec, unsigned char sqe_flags = 0)
 	{
 		int tfd = timerfd_create(CLOCK_REALTIME, 0);
 		itimerspec spec;
@@ -1067,111 +1068,119 @@ class io_operation {
 		return close(tfd, sqe_flags);
 	}
 
+	template <typename Rep, typename Period>
+	auto sleep(std::chrono::duration<Rep, Period> delay, unsigned char sqe_flags = 0)
+	{
+		unsigned long sec = std::chrono::duration_cast<std::chrono::seconds>(delay).count();
+		unsigned long nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(delay - std::chrono::seconds(sec)).count();
+		return sleep(sec, nsec);
+	}
+
 	auto poll_add(const int &fd, const unsigned &poll_mask, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_poll_add_t(fd, poll_mask, sqe_flags));
+		return M_io->submit_io(io_uring_op_poll_add_t(fd, poll_mask, sqe_flags));
 	}
 
 	auto cancel(uring_awaiter &awaiter, const int &flags, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_cancel_t(awaiter.get_data(), flags, sqe_flags));
+		return M_io->submit_io(io_uring_op_cancel_t(awaiter.get_data(), flags, sqe_flags));
 	}
 
 	auto openat(const int &dfd, const char *const &filename, const int &flags, const mode_t &mode, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_openat_t(dfd, filename, flags, mode, sqe_flags));
+		return M_io->submit_io(io_uring_op_openat_t(dfd, filename, flags, mode, sqe_flags));
 	}
 
 	auto read(const int &fd, void *const &buffer, const unsigned &bytes, const off_t &offset, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_read_t(fd, buffer, bytes, offset, sqe_flags));
+		return M_io->submit_io(io_uring_op_read_t(fd, buffer, bytes, offset, sqe_flags));
 	}
 
 	auto read(const int &fd, const int &gbid, const unsigned &bytes, const off_t &offset, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_read_provide_buffer_t(fd, gbid, bytes, offset, sqe_flags));
+		return M_io->submit_io(io_uring_op_read_provide_buffer_t(fd, gbid, bytes, offset, sqe_flags));
 	}
 
 	auto readv(const int &fd, iovec *const &iovecs, const unsigned int &count, const off_t &offset, unsigned char &sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_readv_t(fd, iovecs, count, offset, sqe_flags));
+		return M_io->submit_io(io_uring_op_readv_t(fd, iovecs, count, offset, sqe_flags));
 	}
 
 	auto read_fixed(const int &fd, void *const &buffer, const unsigned &bytes, const off_t &offset, const int &buf_index, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_read_fixed_t(fd, buffer, bytes, offset, buf_index, sqe_flags));
+		return M_io->submit_io(io_uring_op_read_fixed_t(fd, buffer, bytes, offset, buf_index, sqe_flags));
 	}
 
 	auto write(const int &fd, void *const &buffer, const unsigned &bytes, const off_t &offset, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_write_t(fd, buffer, bytes, offset, sqe_flags));
+		return M_io->submit_io(io_uring_op_write_t(fd, buffer, bytes, offset, sqe_flags));
 	}
 
 	auto writev(const int &fd, iovec *const &iovecs, const unsigned int &count, const off_t &offset, unsigned char &sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_writev_t(fd, iovecs, count, offset, sqe_flags));
+		return M_io->submit_io(io_uring_op_writev_t(fd, iovecs, count, offset, sqe_flags));
 	}
 
 	auto write_fixed(const int &fd, void *const &buffer, const unsigned &bytes, const off_t &offset, const int &buf_index, unsigned char sqe_flags = 0)
 	{
-		return M_io_service->submit_io(io_uring_op_write_fixed_t(fd, buffer, bytes, offset, buf_index, sqe_flags));
+		return M_io->submit_io(io_uring_op_write_fixed_t(fd, buffer, bytes, offset, buf_index, sqe_flags));
 	}
 
 	auto recv(const int &fd, void *const &buffer, const size_t &length, const int &flags, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_recv_t(fd, buffer, length, flags, sqe_flags));
+		return M_io->submit_io(io_uring_op_recv_t(fd, buffer, length, flags, sqe_flags));
 	}
 
 	auto recv(const int &fd, const int &gbid, const size_t &length, const int &flags, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_recv_provide_buffer_t(fd, gbid, length, flags, sqe_flags));
+		return M_io->submit_io(io_uring_op_recv_provide_buffer_t(fd, gbid, length, flags, sqe_flags));
 	}
 
 	auto accept(const int &fd, sockaddr *const &client_info, socklen_t *const &socklen, const int &flags, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_accept_t(fd, client_info, socklen, flags, sqe_flags));
+		return M_io->submit_io(io_uring_op_accept_t(fd, client_info, socklen, flags, sqe_flags));
 	}
 
 	auto send(const int &fd, void *const &buffer, const size_t &length, const int &flags, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_send_t(fd, buffer, length, flags, sqe_flags));
+		return M_io->submit_io(io_uring_op_send_t(fd, buffer, length, flags, sqe_flags));
 	}
 
 	auto close(const int &fd, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_close_t(fd, sqe_flags));
+		return M_io->submit_io(io_uring_op_close_t(fd, sqe_flags));
 	}
 
 	auto statx(int dfd, const char *path, int flags, unsigned mask, struct statx *statxbuf, unsigned char sqe_flags = 0)
 	{
-		return M_io_service->submit_io(io_uring_op_statx_t(dfd, path, flags, mask, statxbuf, sqe_flags));
+		return M_io->submit_io(io_uring_op_statx_t(dfd, path, flags, mask, statxbuf, sqe_flags));
 	}
 
 	auto timeout(__kernel_timespec *const &t, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_timeout_t(t, sqe_flags));
+		return M_io->submit_io(io_uring_op_timeout_t(t, sqe_flags));
 	}
 
 	auto link_timeout(__kernel_timespec *const &t, const unsigned &flags, unsigned char sqe_flags = 0) -> uring_awaiter
 	{
-		return M_io_service->submit_io(io_uring_op_link_timeout_t(t, flags, sqe_flags));
+		return M_io->submit_io(io_uring_op_link_timeout_t(t, flags, sqe_flags));
 	}
 
 	auto provide_buffer(void *const addr, int buffer_length, int buffer_count, int bgid, int bid = 0, unsigned char sqe_flags = 0)
 	{
-		return M_io_service->submit_io(io_uring_op_provide_buffer_t(addr, buffer_length, buffer_count, bgid, bid, sqe_flags));
+		return M_io->submit_io(io_uring_op_provide_buffer_t(addr, buffer_length, buffer_count, bgid, bid, sqe_flags));
 	}
 };
 
 enum class IO_OP_TYPE { BATCH, LINK };
 
-template <typename IO_Service, IO_OP_TYPE Type>
-class io_operation_detached : public io_operation<io_operation_detached<IO_Service, Type>> {
-	IO_Service *M_io_service;
+template <typename IO, IO_OP_TYPE Type>
+class io_operation_detached : public io_operation<io_operation_detached<IO, Type>> {
+	IO *M_io;
 	std::vector<io_uring_op> M_io_operations;
 
   public:
-	explicit io_operation_detached(IO_Service *io_service) : io_operation<io_operation_detached<IO_Service, Type>>(this), M_io_service{io_service} {}
+	explicit io_operation_detached(IO *io) : io_operation<io_operation_detached<IO, Type>>(this), M_io{io} {}
 
 	std::vector<io_uring_op> &operations()
 	{
@@ -1181,17 +1190,17 @@ class io_operation_detached : public io_operation<io_operation_detached<IO_Servi
 	template <IO_URING_OP OP>
 	auto submit_io(OP &&operation) -> uring_awaiter
 	{
-		auto future = operation.get_future(M_io_service->get_awaiter_allocator());
+		auto future = operation.get_future(M_io->get_awaiter_allocator());
 		M_io_operations.push_back(std::forward<OP>(operation));
 		return future;
 	}
 };
 
-template <typename IO_Service>
-using io_batch = io_operation_detached<IO_Service, IO_OP_TYPE::BATCH>;
+template <typename IO>
+using io_batch = io_operation_detached<IO, IO_OP_TYPE::BATCH>;
 
-template <typename IO_Service>
-using io_link = io_operation_detached<IO_Service, IO_OP_TYPE::LINK>;
+template <typename IO>
+using io_link = io_operation_detached<IO, IO_OP_TYPE::LINK>;
 
 class io_op_pipeline {
 	io_work_queue<io_uring_op> M_io_work_queue;
@@ -1320,7 +1329,7 @@ class io_service : public io_operation<io_service> {
   protected:
 	void submit();
 
-	void io_loop() noexcept;
+	void loop() noexcept;
 
 	bool io_queue_empty() const noexcept;
 
@@ -2297,5 +2306,13 @@ async<Return> delayed(io_service *io, unsigned long sec, unsigned long nsec, std
 	co_return func();
 }
 
-async<> delay(io_service *io, unsigned long sec, unsigned long nsec);
+async<> sleep(io_service *io, unsigned long sec, unsigned long nsec);
+
+template <typename Rep, typename Period>
+async<> sleep(io_service *io, std::chrono::duration<Rep, Period> delay)
+{
+	unsigned long sec = std::chrono::duration_cast<std::chrono::seconds>(delay).count();
+	unsigned long nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(delay - std::chrono::seconds(sec)).count();
+	co_await sleep(io, sec, nsec);
+}
 } // namespace godby::co

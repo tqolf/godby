@@ -64,3 +64,6 @@
 [submodule "contrib/powercap"]
 	path = contrib/powercap
 	url = https://github.com/powercap/powercap.git
+[submodule "contrib/asyncio"]
+	path = contrib/asyncio
+	url = https://github.com/netcan/asyncio.git
