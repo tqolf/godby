@@ -120,3 +120,15 @@ cc_binary(
     DEPENDENCIES reflectcpp yaml-cpp::yaml-cpp
     OPTIONS -DREFLECT_CPP_C_ARRAYS_OR_INHERITANCE
 )
+
+cc_binary(
+    NAME test-TimerWheel
+    SOURCES test-TimerWheel.cc
+    DEPENDENCIES godby
+)
+
+cc_binary(
+    NAME test-SharedStorage
+    SOURCES test-SharedStorage.cc
+    DEPENDENCIES godby
+)
