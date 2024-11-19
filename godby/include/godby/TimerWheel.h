@@ -9,17 +9,18 @@
 
 namespace godby
 {
-using TickType = uint64_t;
+template <typename TickType>
+class TimerSlotTpl;
+template <typename TickType>
+class TimerWheelTpl;
 
-class TimerSlot;
-class TimerWheel;
-
-class TimerEvent {
+template <typename TickType>
+class TimerEventTpl {
   public:
-	TimerEvent() = default;
+	TimerEventTpl() = default;
 
 	// Automatically canceled on destruction
-	virtual ~TimerEvent()
+	virtual ~TimerEventTpl()
 	{
 		cancel();
 	}
@@ -27,52 +28,52 @@ class TimerEvent {
 	// Safe to cancel an event that is inactive.
 	inline void cancel()
 	{
-		if (slot_) { relink(nullptr); }
+		if (M_slot) { relink(nullptr); }
 	}
 
 	// True if the event is currently scheduled for execution.
 	inline bool scheduled() const
 	{
-		return slot_ != nullptr;
+		return M_slot != nullptr;
 	}
 
 	// The absolute tick this event is scheduled to be executed on.
 	inline TickType scheduled_at() const
 	{
-		return scheduled_tick_;
+		return M_scheduled_at;
 	}
 
   protected:
-	friend class TimerWheel;
+	friend class TimerWheelTpl<TickType>;
 
 	virtual void execute() = 0;
 
 	inline void set_scheduled_at(TickType tick)
 	{
-		scheduled_tick_ = tick;
+		M_scheduled_at = tick;
 	}
 
-	inline void relink(TimerSlot *new_slot);
+	inline void relink(TimerSlotTpl<TickType> *new_slot);
 
   private:
-	TickType scheduled_tick_ = 0;
+	TickType M_scheduled_at = 0;
 
 	// The slot this event is currently in (NULL if not currently scheduled).
-	TimerSlot *slot_ = nullptr;
+	TimerSlotTpl<TickType> *M_slot = nullptr;
 
 	// The events are linked together in the slot using an internal
 	// doubly-linked list; this iterator does double duty as the
 	// linked list node for this event.
-	TimerEvent *next_ = nullptr;
-	TimerEvent *prev_ = nullptr;
+	TimerEventTpl *M_next = nullptr;
+	TimerEventTpl *M_prev = nullptr;
 
-	friend class TimerSlot;
+	friend class TimerSlotTpl<TickType>;
 };
 
-template <typename CallbackType>
-class CallbackTimerEvent : public TimerEvent {
+template <typename TickType, typename CallbackType>
+class CallbackTimerEventTpl : public TimerEventTpl<TickType> {
   public:
-	explicit CallbackTimerEvent(const CallbackType &callback) : callback_(callback) {}
+	explicit CallbackTimerEventTpl(const CallbackType &callback) : callback_(callback) {}
 
   protected:
 	void execute() override
@@ -84,64 +85,66 @@ class CallbackTimerEvent : public TimerEvent {
 	CallbackType callback_;
 };
 
-template <typename T, void (T::*MemberFunction)()>
-class MemberTimerEvent : public TimerEvent {
+template <typename TickType, typename T, void (T::*MemberFunction)()>
+class MemberTimerEventTpl : public TimerEventTpl<TickType> {
   public:
-	explicit MemberTimerEvent(T *obj) : obj_(obj) {}
+	explicit MemberTimerEventTpl(T *obj) : M_obj(obj) {}
 
   protected:
 	void execute() override
 	{
-		(obj_->*MemberFunction)();
+		(M_obj->*MemberFunction)();
 	}
 
   private:
-	T *obj_;
+	T *M_obj;
 };
 
-class TimerSlot {
+template <typename TickType>
+class TimerSlotTpl {
   public:
-	TimerSlot() = default;
+	TimerSlotTpl() = default;
 
-	const TimerEvent *events() const
+	const TimerEventTpl<TickType> *events() const
 	{
-		return events_;
+		return M_events;
 	}
 
-	TimerEvent *pop()
+	TimerEventTpl<TickType> *pop()
 	{
-		auto event = events_;
-		events_ = event->next_;
-		if (events_) { events_->prev_ = nullptr; }
-		event->next_ = nullptr;
-		event->slot_ = nullptr;
+		auto event = M_events;
+		M_events = event->M_next;
+		if (M_events) { M_events->M_prev = nullptr; }
+		event->M_next = nullptr;
+		event->M_slot = nullptr;
 		return event;
 	}
 
   private:
-	friend class TimerEvent;
-	friend class TimerWheel;
+	friend class TimerEventTpl<TickType>;
+	friend class TimerWheelTpl<TickType>;
 
-	TimerEvent *events_ = nullptr;
+	TimerEventTpl<TickType> *M_events = nullptr;
 };
 
-class TimerWheel {
+template <typename TickType>
+class TimerWheelTpl {
   public:
-	TimerWheel(TickType start_tick = 0)
+	TimerWheelTpl(TickType start_tick = 0)
 	{
-		for (int i = 0; i < num_levels; ++i) { now_[i] = start_tick >> (width_bits * i); }
-		ticks_pending_ = 0;
+		for (int i = 0; i < LEVEL_NUM; ++i) { M_now[i] = start_tick >> (BIT_WIDTH * i); }
+		M_ticks_pending = 0;
 	}
 
 	bool advance(TickType delta, size_t max_execute = std::numeric_limits<size_t>::max(), int level = 0);
 
-	void schedule(TimerEvent *event, TickType delta);
+	void schedule(TimerEventTpl<TickType> *event, TickType delta);
 
-	void schedule_in_range(TimerEvent *event, TickType start, TickType end);
+	void schedule_in_range(TimerEventTpl<TickType> *event, TickType start, TickType end);
 
 	TickType now() const
 	{
-		return now_[0];
+		return M_now[0];
 	}
 
 	TickType ticks_to_wakeup(TickType max = std::numeric_limits<TickType>::max(), int level = 0);
@@ -149,53 +152,54 @@ class TimerWheel {
   private:
 	bool process_current_slot(TickType now, size_t &max_events, int level);
 
-	inline static constexpr int width_bits = 8;
-	inline static constexpr int num_levels = (64 + width_bits - 1) / width_bits;
-	inline static constexpr int max_level = num_levels - 1;
-	inline static constexpr int num_slots = 1 << width_bits;
-	inline static constexpr int mask = (num_slots - 1);
+	inline static constexpr int BIT_WIDTH = 8;
+	inline static constexpr int LEVEL_NUM = (sizeof(TickType) * 8 + BIT_WIDTH - 1) / BIT_WIDTH;
+	inline static constexpr int MAX_LEVEL = LEVEL_NUM - 1;
+	inline static constexpr int NUM_SLOTS = 1 << BIT_WIDTH;
+	inline static constexpr int SLOT_MASK = (NUM_SLOTS - 1);
 
-	TickType now_[num_levels];
-	TickType ticks_pending_;
-	TimerSlot slots_[num_levels][num_slots];
+	TickType M_ticks_pending;
+	TickType M_now[LEVEL_NUM];
+	TimerSlotTpl<TickType> M_slots[LEVEL_NUM][NUM_SLOTS];
 };
 
-// TimerEvent method definitions
-
-void TimerEvent::relink(TimerSlot *new_slot)
+// TimerEventTpl method definitions
+template <typename TickType>
+void TimerEventTpl<TickType>::relink(TimerSlotTpl<TickType> *new_slot)
 {
-	if (new_slot == slot_) { return; }
-	if (slot_) {
-		auto prev = prev_;
-		auto next = next_;
-		if (next) { next->prev_ = prev; }
+	if (new_slot == M_slot) { return; }
+	if (M_slot) {
+		auto prev = M_prev;
+		auto next = M_next;
+		if (next) { next->M_prev = prev; }
 		if (prev) {
-			prev->next_ = next;
+			prev->M_next = next;
 		} else {
-			slot_->events_ = next;
+			M_slot->M_events = next;
 		}
 	}
 	if (new_slot) {
-		auto old = new_slot->events_;
-		next_ = old;
-		if (old) { old->prev_ = this; }
-		new_slot->events_ = this;
+		auto old = new_slot->M_events;
+		M_next = old;
+		if (old) { old->M_prev = this; }
+		new_slot->M_events = this;
 	} else {
-		next_ = nullptr;
+		M_next = nullptr;
 	}
-	prev_ = nullptr;
-	slot_ = new_slot;
+	M_prev = nullptr;
+	M_slot = new_slot;
 }
 
-bool TimerWheel::advance(TickType delta, size_t max_execute, int level)
+template <typename TickType>
+bool TimerWheelTpl<TickType>::advance(TickType delta, size_t max_execute, int level)
 {
-	if (ticks_pending_) {
-		if (level == 0) { ticks_pending_ += delta; }
-		TickType now = now_[level];
+	if (M_ticks_pending) {
+		if (level == 0) { M_ticks_pending += delta; }
+		TickType now = M_now[level];
 		if (!process_current_slot(now, max_execute, level)) { return false; }
 		if (level == 0) {
-			delta = (ticks_pending_ - 1);
-			ticks_pending_ = 0;
+			delta = (M_ticks_pending - 1);
+			M_ticks_pending = 0;
 		} else {
 			return true;
 		}
@@ -204,64 +208,67 @@ bool TimerWheel::advance(TickType delta, size_t max_execute, int level)
 	}
 
 	while (delta--) {
-		TickType now = ++now_[level];
+		TickType now = ++M_now[level];
 		if (!process_current_slot(now, max_execute, level)) {
-			ticks_pending_ = (delta + 1);
+			M_ticks_pending = (delta + 1);
 			return false;
 		}
 	}
 	return true;
 }
 
-void TimerWheel::schedule(TimerEvent *event, TickType delta)
+template <typename TickType>
+void TimerWheelTpl<TickType>::schedule(TimerEventTpl<TickType> *event, TickType delta)
 {
 	assert(delta > 0);
-	event->set_scheduled_at(now_[0] + delta);
+	event->set_scheduled_at(M_now[0] + delta);
 
 	int level = 0;
-	while (delta >= num_slots) {
-		delta = (delta + (now_[level] & mask)) >> width_bits;
+	while (delta >= NUM_SLOTS) {
+		delta = (delta + (M_now[level] & SLOT_MASK)) >> BIT_WIDTH;
 		++level;
 	}
 
-	size_t slot_index = (now_[level] + delta) & mask;
-	auto slot = &slots_[level][slot_index];
+	size_t slot_index = (M_now[level] + delta) & SLOT_MASK;
+	auto slot = &M_slots[level][slot_index];
 	event->relink(slot);
 }
 
-void TimerWheel::schedule_in_range(TimerEvent *event, TickType start, TickType end)
+template <typename TickType>
+void TimerWheelTpl<TickType>::schedule_in_range(TimerEventTpl<TickType> *event, TickType start, TickType end)
 {
 	assert(end > start);
 	if (event->scheduled()) {
-		auto current = event->scheduled_at() - now_[0];
+		auto current = event->scheduled_at() - M_now[0];
 		if (current >= start && current <= end) { return; }
 	}
 
 	TickType mask = ~0;
-	while ((start & mask) != (end & mask)) { mask = (mask << width_bits); }
+	while ((start & mask) != (end & mask)) { mask = (mask << BIT_WIDTH); }
 
-	TickType delta = end & (mask >> width_bits);
+	TickType delta = end & (mask >> BIT_WIDTH);
 	schedule(event, delta);
 }
 
-TickType TimerWheel::ticks_to_wakeup(TickType max, int level)
+template <typename TickType>
+TickType TimerWheelTpl<TickType>::ticks_to_wakeup(TickType max, int level)
 {
-	if (ticks_pending_) { return 0; }
+	if (M_ticks_pending) { return 0; }
 
-	TickType now = now_[0];
+	TickType now = M_now[0];
 	TickType min_tick = max;
-	for (int i = 0; i < num_slots; ++i) {
-		auto slot_index = (now_[level] + 1 + i) & mask;
-		if (slot_index == 0 && level < max_level) {
-			if (level > 0 || !slots_[level][slot_index].events()) {
-				auto up_slot_index = (now_[level + 1] + 1) & mask;
-				const auto &slot = slots_[level + 1][up_slot_index];
-				for (auto event = slot.events(); event != nullptr; event = event->next_) { min_tick = std::min(min_tick, event->scheduled_at() - now); }
+	for (int i = 0; i < NUM_SLOTS; ++i) {
+		auto slot_index = (M_now[level] + 1 + i) & SLOT_MASK;
+		if (slot_index == 0 && level < MAX_LEVEL) {
+			if (level > 0 || !M_slots[level][slot_index].events()) {
+				auto up_slot_index = (M_now[level + 1] + 1) & SLOT_MASK;
+				const auto &slot = M_slots[level + 1][up_slot_index];
+				for (auto event = slot.events(); event != nullptr; event = event->M_next) { min_tick = std::min(min_tick, event->scheduled_at() - now); }
 			}
 		}
 		bool found = false;
-		const auto &slot = slots_[level][slot_index];
-		for (auto event = slot.events(); event != nullptr; event = event->next_) {
+		const auto &slot = M_slots[level][slot_index];
+		for (auto event = slot.events(); event != nullptr; event = event->M_next) {
 			min_tick = std::min(min_tick, event->scheduled_at() - now);
 			if (level == 0) {
 				return min_tick;
@@ -272,27 +279,28 @@ TickType TimerWheel::ticks_to_wakeup(TickType max, int level)
 		if (found) { return min_tick; }
 	}
 
-	if (level < max_level && (max >> (width_bits * level + 1)) > 0) { return ticks_to_wakeup(max, level + 1); }
+	if (level < MAX_LEVEL && (max >> (BIT_WIDTH * level + 1)) > 0) { return ticks_to_wakeup(max, level + 1); }
 
 	return max;
 }
 
-bool TimerWheel::process_current_slot(TickType now, size_t &max_events, int level)
+template <typename TickType>
+bool TimerWheelTpl<TickType>::process_current_slot(TickType now, size_t &max_events, int level)
 {
-	size_t slot_index = now & mask;
-	auto &slot = slots_[level][slot_index];
-	if (slot_index == 0 && level < max_level) {
+	size_t slot_index = now & SLOT_MASK;
+	auto &slot = M_slots[level][slot_index];
+	if (slot_index == 0 && level < MAX_LEVEL) {
 		if (!advance(1, max_events, level + 1)) { return false; }
 	}
 	while (slot.events()) {
 		auto event = slot.pop();
 		if (level > 0) {
-			assert((now_[0] & mask) == 0);
-			if (now_[0] >= event->scheduled_at()) {
+			assert((M_now[0] & SLOT_MASK) == 0);
+			if (M_now[0] >= event->scheduled_at()) {
 				event->execute();
 				if (!--max_events) { return false; }
 			} else {
-				schedule(event, event->scheduled_at() - now_[0]);
+				schedule(event, event->scheduled_at() - M_now[0]);
 			}
 		} else {
 			event->execute();
@@ -301,4 +309,7 @@ bool TimerWheel::process_current_slot(TickType now, size_t &max_events, int leve
 	}
 	return true;
 }
-} // namespace
+
+using TimerEvent = TimerEventTpl<uint64_t>;
+using TimerWheel = TimerWheelTpl<uint64_t>;
+} // namespace godby

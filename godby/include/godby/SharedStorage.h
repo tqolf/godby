@@ -157,10 +157,10 @@ struct Reloadable {
 	{
 		if (curr == &ping) {
 			curr = &pong;
-			std::cout << "Switch to pong\n";
+			TRACE("Use pong");
 		} else {
 			curr = &ping;
-			std::cout << "Switch to ping\n";
+			TRACE("Use ping");
 		}
 		return true;
 	}
@@ -385,4 +385,4 @@ class SharedStorage {
 	std::shared_mutex M_mutex;
 	std::unordered_map<std::string, Entry> M_storage;
 };
-} // namespace
+} // namespace godby
